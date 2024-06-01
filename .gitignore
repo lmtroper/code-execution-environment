@@ -38,3 +38,6 @@ next-env.d.ts
 
 # virtual env
 python-fastapi/venv/
+__pycache__/
+*.pyc
+

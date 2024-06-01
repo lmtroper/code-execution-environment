@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  db:
+    build:
+      context: ./db/
+      dockerfile: Dockerfile
+    # image: mysql:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 'root'
+      MYSQL_DATABASE: 'db'
+    ports:
+      - "3306:3306"
+    # volumes:
+    #   - mysql_data:/var/lib/mysql
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:8000"
+    depends_on:
+      - db
+    
+# volumes:
+#   mysql_data:
