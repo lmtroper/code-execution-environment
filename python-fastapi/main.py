@@ -1,104 +1,155 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, Integer, Text
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-import subprocess
+from datetime import datetime
 import mysql.connector
+import subprocess
 import os
-
-# MySQL database configuration
-# MYSQL_HOSTNAME = "db"
-# MYSQL_USER = "root"
-# MYSQL_PASSWORD = "my-secret-pw"
-# MYSQL_DB = "entries"
-# MY_SQL_PORT = 3306  # Update this line
-
-# Construct the MySQL connection URL
-# DATABASE_URL = f"mysql+mysqlconnector://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOSTNAME}:{MY_SQL_PORT}/{MYSQL_DB}"
-
-connection = mysql.connector.connect(
-    user='root', password='root', host='mysql', port='3306', database='db')
-cursor= connection.cursor()
-cursor.execute('SELECT * FROM submissions')
-subs = cursor.fetchall()
-print(subs)
-connection.close()
-
 
 app = FastAPI()
 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["http://localhost:3000"],
-#     allow_credentials=True,
-#     allow_methods=["GET", "POST", "PUT", "DELETE"],
-#     allow_headers=["*"],
-# )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["*"],
+)
 
-# Base = declarative_base()
-# engine = create_engine(DATABASE_URL)
-# SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# MySQL connection settings
+MYSQL_HOST = "db" 
+MYSQL_PORT = 3306
+MYSQL_USER = "root"
+MYSQL_PASSWORD = "root"
+MYSQL_DB = "db"
 
-# class CodeSubmission(Base):
-#     __tablename__ = 'code_submissions'
-#     id = Column(Integer, primary_key=True, index=True)
-#     code = Column(Text, nullable=False)
-#     output = Column(Text, nullable=False)
+class CodeRequest(BaseModel):
+    code: str
 
-# # Create the database tables if they don't exist
-# Base.metadata.create_all(bind=engine)
+@app.post("/runcode/")
+async def run_code(code_request: CodeRequest):
+    print("Running code...\n\n")
+    code = code_request.code
 
-# class CodeRequest(BaseModel):
-#     code: str
-
-# @app.post("/runcode/")
-# async def run_code(code_request: CodeRequest):
-#     code = code_request.code
-
-#     # Run code in isolated environment
-#     try:
-#         # Write the code to a separate file
-#         with open("temp_code.py", "w") as f:
-#             f.write(code)
+    try:
+        # Write the code to a separate file
+        with open("temp_code.py", "w") as f:
+            f.write(code)
         
-#         result = subprocess.run(["python", "temp_code.py"], capture_output=True, text=True, timeout=10)
+        result = subprocess.run(["python", "temp_code.py"], capture_output=True, text=True, timeout=10)
         
-#         if result.returncode != 0:
-#             raise HTTPException(status_code=400, detail=result.stderr)
+        if result.returncode != 0:
+            error_message = result.stderr
+            return {"output": error_message} # Return stderr as error detail
         
-#         return {"output": result.stdout}
-#     except subprocess.TimeoutExpired:
-#         raise HTTPException(status_code=400, detail="Execution timed out.")
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
-#     finally:
-#         # Clean up the temporary file
-#         if os.path.exists("temp_code.py"):
-#             os.remove("temp_code.py")
+        return {"output": result.stdout}
+    
+    except subprocess.TimeoutExpired:
+        error_message = "Execution timed out."
+        print("Timeout error:", error_message)
+        raise HTTPException(status_code=400, detail=error_message)
+    
+    except Exception as e:
+        error_message = str(e)
+        print("Unknown error:", error_message)
+        raise HTTPException(status_code=400, detail=error_message)
+    
+    finally:
+        # Clean up the temporary file
+        if os.path.exists("temp_code.py"):
+            os.remove("temp_code.py")
 
-# @app.post("/submitcode/")
-# async def submit_code(code_request: CodeRequest):
-#     code = code_request.code
+@app.post("/savecode/")
+async def save_code(code_request: CodeRequest):
+    code = code_request.code
 
-#     # Run the code and capture the output
-#     try:
-#         result = subprocess.run(["python", "-c", code], capture_output=True, text=True, timeout=10)
+    try:
+        # Write the code to a separate file
+        with open("temp_code.py", "w") as f:
+            f.write(code)
         
-#         if result.returncode != 0:
-#             raise HTTPException(status_code=400, detail=result.stderr)
+        result = subprocess.run(["python", "temp_code.py"], capture_output=True, text=True, timeout=10)
+        
+        if result.returncode != 0:
+            error_message = result.stderr
+            return {"message": "Code saved successfully!", "output": error_message} # Return stderr as error detail
+        
+        # Connect to the MySQL database
+        connection = mysql.connector.connect(
+            host=MYSQL_HOST,
+            port=MYSQL_PORT,
+            user=MYSQL_USER,
+            password=MYSQL_PASSWORD,
+            database=MYSQL_DB
+        )
+        cursor = connection.cursor()
 
-#         # Save the code and output to the database
-#         db = SessionLocal()
-#         code_submission = CodeSubmission(code=code, output=result.stdout)
-#         db.add(code_submission)
-#         db.commit()
-#         db.refresh(code_submission)
-#         db.close()
+        # Insert the code and output into the submissions table
+        query = "INSERT INTO submissions (code, output_code, created_at) VALUES (%s, %s, %s)"
+        cursor.execute(query, (code, result.stdout, datetime.now()))
 
-#         return {"output": result.stdout}
-#     except subprocess.TimeoutExpired:
-#         raise HTTPException(status_code=400, detail="Execution timed out.")
-#     except Exception as e:
-#         raise HTTPException(status_code=400, detail=str(e))
+        # Commit the transaction
+        connection.commit()
+
+        return {"message": "Code saved and executed successfully!", "output": result.stdout}
+
+    except (subprocess.SubprocessError, mysql.connector.Error) as e:
+        error_message = str(e)
+        print("Error:", error_message)
+        raise HTTPException(status_code=500, detail=error_message)
+    
+    except subprocess.TimeoutExpired:
+        error_message = "Execution timed out."
+        print("Timeout error:", error_message)
+        raise HTTPException(status_code=400, detail=error_message)
+    
+    except Exception as e:
+        error_message = str(e)
+        print("Unknown error:", error_message)
+        raise HTTPException(status_code=400, detail=error_message)
+    
+    finally:
+        # Clean up the temporary file
+        if os.path.exists("temp_code.py"):
+            os.remove("temp_code.py")
+        
+        # Close the database connection
+        if 'connection' in locals() and connection.is_connected():
+            cursor.close()
+            connection.close()
+            print("MySQL connection closed.")
+
+@app.get("/submissions/")
+async def get_submissions():
+    try:
+        # Connect to the MySQL database
+        connection = mysql.connector.connect(
+            host=MYSQL_HOST,
+            port=MYSQL_PORT,
+            user=MYSQL_USER,
+            password=MYSQL_PASSWORD,
+            database=MYSQL_DB
+        )
+        cursor = connection.cursor()
+
+        query = "SELECT * FROM submissions ORDER BY created_at DESC"
+        cursor.execute(query)
+        submissions = cursor.fetchall()
+
+        # Format the results as a list of dictionaries
+        result = [
+            {"id": row[0], "code": row[1], "output_code": row[2], "created_at": row[3].isoformat()}
+            for row in submissions
+        ]
+
+        return result
+
+    except mysql.connector.Error as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving submissions from MySQL: {e}")
+
+    finally:
+        # Close the connection
+        if 'connection' in locals() and connection.is_connected():
+            cursor.close()
+            connection.close()
+            print("MySQL connection closed.")

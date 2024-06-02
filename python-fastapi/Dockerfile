@@ -1,14 +1,8 @@
 FROM python:3.11-slim
 
-# Install PostgreSQL development package
-RUN apt-get update && \
-    apt-get install -y libpq-dev gcc
-    # RUN useradd -ms /bin/bash sandboxuser
-# USER sandboxuser
+RUN apt-get update && apt-get install -y libpq-dev gcc
 
 WORKDIR /app
-
-# RUN chown -R sandboxuser:sandboxuser /app
 
 COPY requirements.txt ./
 

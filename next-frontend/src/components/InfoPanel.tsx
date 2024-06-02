@@ -1,5 +1,6 @@
 // components/InfoPanel.tsx
 import React from 'react';
+import { Card } from 'antd';
 
 const Explanation: React.FC = () => {
   return (
@@ -14,6 +15,15 @@ const Explanation: React.FC = () => {
       <p>
         When you are ready, you can submit your code, and it will be validated and saved. Enjoy coding!
       </p>
+      <br />
+      <Card title="Techstack + Libraries Used" bordered={false} style={{ width: 300 }}>
+        <p>Python FastAPI</p>
+        <p>Next.js, TypeScript, Tailwind CSS</p>
+        <p>Docker</p>
+        <p>MySQL</p>
+        <p>CodeMirror npm library</p>
+        <p>Ant Design library</p>
+      </Card>
     </div>
   );
 };
