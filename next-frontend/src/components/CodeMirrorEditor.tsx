@@ -11,16 +11,25 @@ interface EditorProps {
 const CodeMirrorEditor: React.FC<EditorProps> = ({ onCodeChange }) => {
   const [code, setCode] = React.useState<string>('print("Hello, Datacurve!")');
 
-  const onChange = React.useCallback((input: string, viewUpdate: ViewUpdate) => {
-    setCode(input);
-    onCodeChange(input);
-  }, [onCodeChange]);
+  const onChange = React.useCallback(
+    (input: string, viewUpdate: ViewUpdate) => {
+      setCode(input);
+      onCodeChange(input);
+    },
+    [onCodeChange]
+  );
 
   return (
-    <div className='flex-col'>
-      <CodeMirror value={code} theme="dark" height="500px" onChange={onChange} extensions={[python()]} />
+    <div className="flex-col">
+      <CodeMirror
+        value={code}
+        theme="dark"
+        height="500px"
+        onChange={onChange}
+        extensions={[python()]}
+      />
     </div>
   );
-}
+};
 
 export default CodeMirrorEditor;

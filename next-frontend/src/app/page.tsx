@@ -1,4 +1,4 @@
-"use client"
+'use client';
 
 import React, { useState } from 'react';
 import CodeMirrorEditor from '@/components/CodeMirrorEditor';
@@ -21,7 +21,11 @@ export default function Home() {
         </div>
         <div className="w-2/3">
           <CodeMirrorEditor onCodeChange={setCode} />
-          <CodeOutput code={code} output={output} onCodeOutput={handleCodeOutput} />
+          <CodeOutput
+            code={code}
+            output={output}
+            onCodeOutput={handleCodeOutput}
+          />
         </div>
       </div>
     </main>
