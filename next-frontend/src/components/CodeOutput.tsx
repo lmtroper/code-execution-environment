@@ -24,24 +24,36 @@ const CodeOutput: React.FC<CodeOutputProps> = ({ code, output, onCodeOutput }) =
   const [submissions, setSubmissions] = React.useState<Submission[]>([]);
   
   const handleTestCode = async () => {
-    setSuccessMessage(null)    
+    setSuccessMessage(null);
     setError(null);
-
-    const output = await runCode(code);
-    if (typeof output === 'string') {
-      onCodeOutput(output);
-    } else {
+  
+    try {
+      const output = await runCode(code);
+      if (typeof output === 'string') {
+        onCodeOutput(output);
+        return true;  // Indicate success
+      } else {
+        setError('There was an error testing your code.');
+        return false; // Indicate failure
+      }
+    } catch (error) {
       setError('There was an error testing your code.');
+      return false; // Indicate failure
     }
   };
 
   const handleSubmitCode = async () => {
     try {
-      await handleTestCode(); // Test code before submitting
       setError(null); // Reset error state
-      setSuccessMessage(null); // Reset success message
+
+      const testSuccess = await handleTestCode();
+      if (!testSuccess) {
+        return;
+      }
+      
+      setSuccessMessage(null);
       const output = await submitCode(code);
-      setTimeout(() =>  setSuccessMessage('Code submitted successfully!'), 300);
+      setTimeout(() => setSuccessMessage('Code submitted successfully!'), 300);
       setTimeout(() => setSuccessMessage(null), 5000);
     } catch (error: any) {
       setError(error.response?.data?.detail || 'There was an error submitting your code.');
